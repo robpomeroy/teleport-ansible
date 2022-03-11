@@ -1,0 +1,9 @@
+---
+- name: Include tasks for creation of service account
+  include: service_account.yml
+
+- name: Include tasks to prevent interactive logins
+  include: block_interactive.yml
+
+- name: Include tasks to allow Teleport connections
+  include: allow_connections.yml

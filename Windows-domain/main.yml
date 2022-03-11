@@ -1,0 +1,13 @@
+#!/usr/bin/env ansible-playbook
+---
+# See README.md for usage
+- hosts: all
+  remote_user: IntechAnsible
+  become_method: runas
+
+  # Encrypted variables
+  vars_files:
+    - vars/secrets.yml
+  
+  roles:
+    - role: teleport

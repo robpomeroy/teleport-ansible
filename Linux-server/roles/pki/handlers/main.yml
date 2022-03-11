@@ -1,0 +1,9 @@
+---
+- name: Install root CA certificate
+  command:
+    cmd: "step certificate install /root/.step/certs/root_ca.crt"
+    creates: /root/.step/config/defaults.json
+
+- name: Update certificate store
+  command:
+    cmd: /bin/update-ca-trust

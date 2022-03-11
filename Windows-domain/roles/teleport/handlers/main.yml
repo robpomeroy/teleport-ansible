@@ -1,0 +1,4 @@
+---
+- name: End user message
+  debug:
+    msg: "IMPORTANT NOTE: Follow the manual steps in README.md to add the certificate to the group policy object."

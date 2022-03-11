@@ -1,0 +1,44 @@
+---
+- name: Test GPO - Block interactive login for Teleport Service
+  ansible.windows.win_powershell:
+    script: |
+      Get-GPO -Name "Block interactive login for Teleport Service"
+  register: gpo_test
+  changed_when: false
+
+- name: Create GPO - Block interactive login for Teleport Service
+  ansible.windows.win_powershell:
+    script: |
+      (New-GPO -Name "Block interactive login for Teleport Service" | New-GPLink -Target "{{ domain_dn }}").GpoId.Guid
+  register: gpo_create
+  when: gpo_test.error
+
+- name: Get SID of Teleport Service
+  ansible.windows.win_powershell:
+    script: |
+      (Get-ADUser -Identity "Teleport Service").SID.Value
+  register: teleport_sid
+  changed_when: false
+  when: gpo_test.error
+
+- name: Create GPO backup directories
+  ansible.windows.win_file:
+    path: C:\Windows\Temp\block_interactive\{{ item.path }}
+    state: directory
+  with_filetree: ../templates/block_interactive
+  when: item.state == 'directory' and gpo_test.error
+
+- name: Copy GPO backup files
+  ansible.windows.win_template:
+    src: "{{ item.src }}"
+    # Remove the ".j2" extension when copying
+    dest: C:\Windows\Temp\block_interactive\{{ item.path.rstrip(".j2") }}
+    trim_blocks: no
+  with_filetree: ../templates/block_interactive
+  when: item.state == "file" and gpo_test.error
+
+- name: Import GPO - Block interactive login for Teleport Service
+  ansible.windows.win_powershell:
+    script: |
+      Import-GPO -BackupGpoName "Block interactive login for Teleport Service" -Path "C:\Windows\Temp\block_interactive" -TargetGuid "{{ gpo_create.output[0] }}"
+  when: gpo_test.error

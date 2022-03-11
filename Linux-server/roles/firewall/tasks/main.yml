@@ -1,0 +1,7 @@
+---
+- name: Alllow HTTPS through firewall
+  firewalld:
+    service: https
+    permanent: yes
+    state: enabled
+    immediate: true

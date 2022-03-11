@@ -1,0 +1,56 @@
+---
+# Install Smallstep CLI
+- name: Unarchive step cli tarball to /tmp
+  unarchive:
+    src: https://dl.step.sm/gh-release/cli/gh-release-header/v0.18.2/step_linux_0.18.2_amd64.tar.gz
+    dest: /tmp
+    creates: /tmp/step_0.18.2
+
+- name: Copy step CLI binary to /usr/bin
+  copy:
+    src: /tmp/step_0.18.2/bin/step
+    dest: /usr/bin/step
+    remote_src: yes
+    mode: 0555
+
+# Bootstrap this client to use Smallstep-based PKI
+- name: Bootstrap existing CA
+  command:
+    cmd: "step ca bootstrap --ca-url {{ root_ca_url }} --install --force --fingerprint {{ root_ca_fingerprint }}"
+    creates: /root/.step/config/defaults.json
+  notify: Install root CA certificate
+
+- name: Create Teleport config directory
+  file:
+    path: /etc/teleport
+    state: directory
+    owner: root
+    group: root
+    mode: 0700
+
+# TODO: Switch to using ACME
+- name: Copy Teleport's key material
+  copy:
+    src: "{{ item }}"
+    dest: "/etc/teleport/{{ item }}"
+    owner: root
+    group: root
+    mode: 0400
+  loop:
+    - fullchain.pem
+    - privkey.pem
+
+# Optional: CA certificate from Active Directory domain. (Nothing will happen
+# if the AD_Domain_CA.pem file is not present.)
+- name: Check if we have an AD CA certificate to copy
+  local_action:
+    module: stat
+    path: roles/pki/files/AD_Domain_CA.pem
+  register: ad_ca_file
+
+- name: Copy Active Directory CA certificate
+  copy:
+    src: AD_Domain_CA.pem
+    dest: /etc/pki/ca-trust/source/anchors/AD_Domain_CA.pem
+  when: ad_ca_file.stat.exists
+  notify: Update certificate store

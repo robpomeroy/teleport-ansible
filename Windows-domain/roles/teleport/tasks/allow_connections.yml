@@ -1,0 +1,64 @@
+---
+- name: Copy Teleport user CA certificate
+  copy:
+    src: user-ca.cer
+    dest: C:\Windows\Temp\user-ca.cer
+
+# Note: we make an assumption here that if our certificate is in the Local
+# Machine certificate store, it has also been published to Active Directory.
+# Unfortunately Microsoft provides no PowerShell method to query the NTDS
+# certificate store, so it's not straightforward to check its presence there
+# (other than via the MMC).
+- name: Check if certificate is already installed
+  ansible.windows.win_powershell:
+    script: |
+      $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2
+      $cert.Import("C:\Windows\Temp\user-ca.cer")
+      ((Get-ChildItem -Path "Cert:\LocalMachine\Root" | Where-Object {$_.Thumbprint -eq $cert.Thumbprint}) | Measure-Object).Count
+  register: user_ca
+  changed_when: false
+
+- name: Publish user CA certificate to AD (takes time to propagate)
+  ansible.windows.win_powershell:
+    script: |
+      certutil -dspublish -f C:\Windows\Temp\user-ca.cer RootCA
+      certutil -dspublish -f C:\Windows\Temp\user-ca.cer NTAuthCA
+      certutil -pulse
+  when: user_ca.output[0] == 0
+  notify: End user message
+
+- name: Test GPO - Teleport Access Policy
+  ansible.windows.win_powershell:
+    script: |
+      Get-GPO -Name "Teleport Access Policy"
+  register: gpo_test
+  changed_when: false
+
+- name: Create GPO - Teleport Access Policy
+  ansible.windows.win_powershell:
+    script: |
+      (New-GPO -Name "Teleport Access Policy" | New-GPLink -Target "{{ domain_dn }}").GpoId.Guid
+  register: gpo_create
+  when: gpo_test.error
+
+- name: Create GPO backup directories
+  ansible.windows.win_file:
+    path: C:\Windows\Temp\allow_connections\{{ item.path }}
+    state: directory
+  with_filetree: ../templates/allow_connections
+  when: item.state == 'directory' and gpo_test.error
+
+- name: Copy GPO backup files
+  ansible.windows.win_template:
+    src: "{{ item.src }}"
+    # Remove the ".j2" extension when copying
+    dest: C:\Windows\Temp\allow_connections\{{ item.path.rstrip(".j2") }}
+    trim_blocks: no
+  with_filetree: ../templates/allow_connections
+  when: item.state == "file" and gpo_test.error
+
+- name: Import GPO - Teleport Access Policy
+  ansible.windows.win_powershell:
+    script: |
+      Import-GPO -BackupGpoName "Teleport Access Policy" -Path "C:\Windows\Temp\allow_connections" -TargetGuid "{{ gpo_create.output[0] }}"
+  when: gpo_test.error

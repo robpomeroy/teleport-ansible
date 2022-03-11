@@ -1,0 +1,14 @@
+#!/usr/bin/env ansible-playbook
+---
+# See README.md
+- hosts: all
+  remote_user: ansible
+  become: true
+
+  roles:
+    - role: firewall
+      tags: [firewall]
+    - role: pki
+      tags: [pki]
+    - role: teleport
+      tags: [teleport]

@@ -1,0 +1,12 @@
+---
+teleport_url: teleport.web.dns
+
+# Fingerprint of a Smallstep (https://smallstep.com/) CA's root certificate: 
+root_ca_fingerprint: e2970741b39a7480ac827e4454bdb4d55011c74c6085da2219f71a80a0976d27
+# URL to access the Smallstep CA
+root_ca_url: https://ca.your.domain:8443
+
+# Only required if setting up Desktop Access (Windows):
+windows_domain_netbios: Domain
+windows_domain_dc:  DomainController.your.ad.domain # Case sensitive!
+windows_domain_dns: your.ad.domain

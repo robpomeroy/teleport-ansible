@@ -1,0 +1,9 @@
+# Users need their own user CA file
+roles/teleport/files/user-ca.cer
+
+# Personal secrets file
+vars/secrets.yml
+
+# My inventory
+inventory
+group_vars/robdev.yml

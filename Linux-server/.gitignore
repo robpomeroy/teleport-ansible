@@ -1,0 +1,6 @@
+# Don't commit the AD certificate file (add your own)
+roles/pki/files/AD_Domain_CA.pem
+
+# My inventory
+inventory
+group_vars/robdev.yml

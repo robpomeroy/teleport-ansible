@@ -1,0 +1,4 @@
+---
+domain_netbios: MYDOMAIN
+domain_dn: DC=private,DC=mydomain,DC=com
+domain_dns: private.mydomain.com

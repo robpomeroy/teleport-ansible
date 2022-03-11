@@ -1,0 +1,57 @@
+---
+# For latest RPMs, see https://goteleport.com/teleport/download/
+- name: Install Teleport RPM public key
+  rpm_key:
+    key: https://rpm.releases.teleport.dev/RPM-GPG-KEY-teleport
+    state: present
+
+- name: Install Teleport from official repository
+  dnf:
+    name: https://get.gravitational.com/teleport-9.0.0-rc.2-1.x86_64.rpm
+    state: latest
+  notify: Restart Teleport
+
+# If we're trusting an AD Certificate Authority, we'll assume (in the 
+# teleport.yml file) that we'll enable the Windows Desktop service.
+- name: Check if we're using Active Directory (we have a root CA file)
+  local_action:
+    module: stat
+    path: roles/pki/files/AD_Domain_CA.pem
+  register: ad_ca_file
+
+- name: Copy Teleport's config file
+  template:
+    src: teleport.yaml.j2
+    dest: /etc/teleport/teleport.yaml
+    owner: root
+    group: root
+    mode: 0400
+  notify: Restart Teleport
+
+- name: Override Teleport systemd configuration
+  copy:
+    src: teleport.service
+    dest: /etc/systemd/system/teleport.service
+    owner: root
+    group: root
+    mode: 0644
+
+# The daemon_reload key ensures we've registered the unit file override.
+- name: Enable and start Teleport
+  systemd:
+    name: teleport
+    enabled: yes
+    state: started
+    daemon_reload: yes
+
+- name: Add symlinks for Teleport binaries
+  file:
+    src: "/usr/local/bin/{{ item }}"
+    dest: "/usr/bin/{{ item }}"
+    owner: root
+    group: root
+    state: link
+  loop:
+    - tctl
+    - teleport
+    - tsh

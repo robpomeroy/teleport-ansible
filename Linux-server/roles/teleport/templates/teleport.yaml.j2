@@ -1,0 +1,46 @@
+version: v2
+teleport:
+  nodename: {{ inventory_hostname }}
+  data_dir: /var/lib/teleport
+  log:
+    output: stderr
+    severity: INFO
+    format:
+      output: text
+  ca_pin: []
+  diag_addr: ""
+auth_service:
+  enabled: "yes"
+  listen_addr: 0.0.0.0:3025
+  cluster_name: {{ teleport_url }}
+  proxy_listener_mode: multiplex
+ssh_service:
+  enabled: "yes"
+  labels:
+    env: example
+  commands:
+  - name: hostname
+    command: [hostname]
+    period: 1m0s
+proxy_service:
+  enabled: "yes"
+  web_listen_addr: 0.0.0.0:443
+  public_addr: {{ teleport_url }}:443
+  https_keypairs:
+  - key_file: /etc/teleport/privkey.pem
+    cert_file: /etc/teleport/fullchain.pem
+  acme: {}
+{# Enable Desktop Access, if we have an AD CA certificate #}
+{% if ad_ca_file.stat.exists %}
+windows_desktop_service:
+  enabled: yes
+  listen_addr: "0.0.0.0:3028"
+  ldap:
+    addr: {{ windows_domain_dc }}:636
+    domain: {{ windows_domain_dns }}
+    username: {{ windows_domain_netbios }}\Teleport Service
+    # We added the certificate to the system store, so don't need this.
+    #der_ca_file: /path/to/cert
+  discovery:
+    base_dn: "*"
+{% endif %}
